@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <title>YT-DLP 網頁版</title>
+    <!-- 在這裡加入 Favicon 的連結 -->
+    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="x-icon">
+    <style>
+        body { font-family: sans-serif; max-width: 800px; margin: 50px auto; }
+        .container { border: 1px solid #ccc; padding: 20px; border-radius: 8px; }
+        textarea { width: 95%; padding: 10px; font-family: monospace; }
+        button { padding: 10px 20px; font-size: 16px; cursor: pointer; }
+        .radio-group label { display: block; margin-bottom: 10px; }
+        #result { margin-top: 20px; padding: 10px; border: 1px solid transparent; border-radius: 4px; }
+        .success { border-color: green; background-color: #e8f5e9; }
+        .error { border-color: red; background-color: #ffebee; }
+        .info { border-color: blue; background-color: #e3f2fd; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- 在這裡加入圖片 -->
+        <img src="{{ url_for('static', filename='my_logo.png') }}" alt="網站 Logo" width="100">
+        <h1>YT-DLP 網頁版下載器</h1>
+
+        <h2>1. 選擇操作模式</h2>
+        <div class="radio-group">
+            <label><input type="radio" name="mode" value="multiple_videos" checked> 下載單一影片 (多網址僅處理第一個)</label>
+            <label><input type="radio" name="mode" value="info_videos"> 獲取獨立影片資訊 (可多網址)</label>
+            <label><input type="radio" name="mode" value="info_playlist_fast"> 獲取播放清單資訊 (快速摘要)</label>
+            <label><input type="radio" name="mode" value="info_playlist_detailed"> 獲取播放清單資訊 (完整詳細, 速度慢)</label>
+        </div>
+
+        <h2>2. 輸入網址 (一行一個)</h2>
+        <textarea id="urls" rows="8" required></textarea>
+
+        <br><br>
+        <button id="submitBtn">開始執行</button>
+
+        <div id="result"></div>
+    </div>
+
+    <script>
+        // 【重大修正】將事件監聽器綁定在按鈕上，而不是用 onclick
+        const submitBtn = document.getElementById('submitBtn');
+        const resultDiv = document.getElementById('result');
+        const urlsText = document.getElementById('urls');
+
+        submitBtn.addEventListener('click', async function() {
+            const selectedMode = document.querySelector('input[name="mode"]:checked').value;
+
+            // 1. 禁用按鈕，顯示處理中訊息
+            submitBtn.disabled = true;
+            submitBtn.innerText = '處理中...';
+            resultDiv.innerHTML = '<p>正在向伺服器發送請求，請稍候...</p>';
+            resultDiv.className = 'info';
+
+            try {
+                // 2. 發送請求
+                const response = await fetch('/process', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ mode: selectedMode, urls: urlsText.value })
+                });
+
+                const data = await response.json();
+
+                // 3. 處理回覆
+                if (response.ok) {
+                    let successMessage = `<h3>處理成功！</h3>`;
+                    if(data.count) {
+                        successMessage += `<p>成功獲取 ${data.count} 筆資料。</p>`;
+                    }
+                    successMessage += `<p><a href="${data.download_url}" download>點此下載：${data.filename}</a></p>`;
+
+                    resultDiv.className = 'success';
+                    resultDiv.innerHTML = successMessage;
+                } else {
+                    resultDiv.className = 'error';
+                    resultDiv.innerHTML = `<h3>發生錯誤</h3><p>${data.message || '未知伺服器錯誤'}</p>`;
+                }
+
+            } catch (error) {
+                resultDiv.className = 'error';
+                resultDiv.innerHTML = `<h3>發生客戶端錯誤</h3><p>${error}</p>`;
+            } finally {
+                // 4. 恢復按鈕
+                submitBtn.disabled = false;
+                submitBtn.innerText = '開始執行';
+            }
+        });
+    </script>
+</body>
+</html>
