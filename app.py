@@ -113,7 +113,14 @@ def process_request():
                             'count': len(processed_data)})
 
     except Exception as e:
-        return jsonify({'status': 'error', 'message': f"處理時發生嚴重錯誤: {e}"}), 500
+        error_message = str(e)
+        # 辨識這個特定的錯誤
+        if "Sign in to confirm" in error_message or "confirm you're not a bot" in error_message:
+            friendly_error = "此影片受到 YouTube 保護，需要登入才能下載，目前無法透過本服務下載。請嘗試其他影片。"
+            return jsonify({'status': 'error', 'message': friendly_error}), 500
+        else:
+            # 對於其他未知錯誤，回傳原始訊息
+            return jsonify({'status': 'error', 'message': f"處理時發生嚴重錯誤: {error_message}"}), 500
 
 
 # /files/<path:filename> 路由保持不變
@@ -126,4 +133,5 @@ def download_file(filename):
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
+
     app.run(host='0.0.0.0', port=port, debug=True)
